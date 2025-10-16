@@ -1,0 +1,19 @@
+secret:
+  enabled: true
+  name: db-secrets
+  data:
+    DB_USER: "iq_user"
+    DB_PASS: "iq_password"
+
+{{- if .Values.secret.enabled }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ .Values.secret.name }}
+  namespace: {{ .Values.namespace.name | default .Release.Namespace }}
+type: Opaque
+stringData:
+{{- range $key, $value := .Values.secret.data }}
+  {{ $key }}: "{{ $value }}"
+{{- end }}
+{{- end }}
