@@ -1,0 +1,42 @@
+{{- if .Values.pv.enabled }}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ required "pv.name is required" .Values.pv.name }}
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  capacity:
+    storage: {{ .Values.pv.capacity.storage | default "100Gi" }}
+  accessModes:
+{{- range .Values.pv.accessModes }}
+    - {{ . }}
+{{- end }}
+  persistentVolumeReclaimPolicy: {{ .Values.pv.reclaimPolicy | default "Retain" }}
+  volumeMode: {{ .Values.pv.volumeMode | default "Filesystem" }}
+  csi:
+    driver: {{ .Values.pv.csi.driver | default "filestore.csi.storage.gke.io" }}
+    volumeHandle: {{ required "pv.csi.volumeHandle is required" .Values.pv.csi.volumeHandle | quote }}
+    volumeAttributes:
+      ip: {{ required "pv.csi.volumeAttributes.ip is required" .Values.pv.csi.volumeAttributes.ip | quote }}
+      volume: {{ required "pv.csi.volumeAttributes.volume is required" .Values.pv.csi.volumeAttributes.volume | quote }}
+{{- end }}
+
+
+
+pv:
+  enabled: true
+  name: nxiq-filestore-pv1
+  capacity:
+    storage: 100Gi
+  accessModes:
+    - ReadWriteMany
+  reclaimPolicy: Retain
+  volumeMode: Filesystem
+  csi:
+    driver: filestore.csi.storage.gke.io
+    volumeHandle: modeInstance/europe-west2/iq-filestore-dev/iq_dev_sfs
+    volumeAttributes:
+      ip: 192.168.197.2
+      volume: iq_dev_sfs
