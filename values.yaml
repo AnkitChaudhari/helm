@@ -1,42 +1,238 @@
-{{- if .Values.pv.enabled }}
-apiVersion: v1
-kind: PersistentVolume
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: {{ required "pv.name is required" .Values.pv.name }}
+  name: {{ .Values.deployment.name | default (printf "%s-%s" .Release.Name .Chart.Name) }}
   labels:
-    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/name: {{ .Values.app.name | default .Chart.Name }}
     app.kubernetes.io/instance: {{ .Release.Name }}
 spec:
-  capacity:
-    storage: {{ .Values.pv.capacity.storage | default "100Gi" }}
-  accessModes:
-{{- range .Values.pv.accessModes }}
-    - {{ . }}
-{{- end }}
-  persistentVolumeReclaimPolicy: {{ .Values.pv.reclaimPolicy | default "Retain" }}
-  volumeMode: {{ .Values.pv.volumeMode | default "Filesystem" }}
-  csi:
-    driver: {{ .Values.pv.csi.driver | default "filestore.csi.storage.gke.io" }}
-    volumeHandle: {{ required "pv.csi.volumeHandle is required" .Values.pv.csi.volumeHandle | quote }}
-    volumeAttributes:
-      ip: {{ required "pv.csi.volumeAttributes.ip is required" .Values.pv.csi.volumeAttributes.ip | quote }}
-      volume: {{ required "pv.csi.volumeAttributes.volume is required" .Values.pv.csi.volumeAttributes.volume | quote }}
-{{- end }}
+  replicas: {{ .Values.deployment.replicas | default 2 }}
+  strategy:
+    type: {{ .Values.deployment.strategy.type | default "RollingUpdate" }}
+    rollingUpdate:
+      maxUnavailable: {{ .Values.deployment.strategy.rollingUpdate.maxUnavailable | default 1 }}
+      maxSurge: {{ .Values.deployment.strategy.rollingUpdate.maxSurge | default 0 }}
+
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Values.app.name | default .Chart.Name }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+
+  template:
+    metadata:
+      annotations:
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        app.kubernetes.io/name: {{ .Values.app.name | default .Chart.Name }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name | default "iq-ksa" }}
+
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+      containers:
+        - name: {{ .Values.image.name | default "nexus-iq-server1" }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy | default "Always" }}
+
+          {{- with .Values.containerSecurityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+
+          {{- with .Values.env }}
+          env:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+
+          {{- with .Values.ports }}
+          ports:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+
+          {{- with .Values.volumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+
+        {{- with .Values.sidecars }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+
+      {{- with .Values.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
 
 
 
-pv:
-  enabled: true
-  name: nxiq-filestore-pv1
-  capacity:
-    storage: 100Gi
-  accessModes:
-    - ReadWriteMany
-  reclaimPolicy: Retain
-  volumeMode: Filesystem
-  csi:
-    driver: filestore.csi.storage.gke.io
-    volumeHandle: modeInstance/europe-west2/iq-filestore-dev/iq_dev_sfs
-    volumeAttributes:
-      ip: 192.168.197.2
-      volume: iq_dev_sfs
+
+
+
+app:
+  name: nexus-iq-server
+
+deployment:
+  name: iq-nexus-iq-server
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 0
+
+podAnnotations:
+  cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
+
+serviceAccount:
+  name: iq-ksa
+
+podSecurityContext:
+  fsGroupChangePolicy: "OnRootMismatch"
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  seccompProfile:
+    type: RuntimeDefault
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+image:
+  name: nexus-iq-server1
+  repository: repo/nexus-iq-server
+  tag: "1.196.0"
+  pullPolicy: Always
+
+env:
+  - name: NXIQ_LICENSE_FILE
+    value: /license/license_lic
+  - name: JAVA_OPTS
+    value: "-Xmx2G -Xms2G -XX:CompressedClassSpaceSize=2G -XX:+UseG1GC"
+  - name: DB_USER
+    valueFrom:
+      secretKeyRef:
+        name: db-secrets
+        key: DB_USER
+  - name: DB_PASS
+    valueFrom:
+      secretKeyRef:
+        name: db-secrets
+        key: DB_PASS
+
+resources:
+  limits:
+    memory: "2Gi"
+    cpu: "2"
+  requests:
+    memory: "2Gi"
+    cpu: "2"
+
+ports:
+  - name: application
+    containerPort: 8070
+    protocol: TCP
+  - name: admin
+    containerPort: 8071
+    protocol: TCP
+
+# from your screenshots (filestore pvc, config map, temp dirs, logs, java lock, etc.)
+volumeMounts:
+  - mountPath: /sonatype-work/clm-cluster
+    name: nxiq-filestore-pv1
+  - mountPath: /opt/sonatype/nexus-iq-server/.ssh
+    name: nxiq-filestore-pv1
+    subPath: .ssh
+  - mountPath: /etc/nexus-iq-server
+    name: config-volume1
+  - mountPath: /opt/sonatype/nexus-iq-server/.java
+    name: java-lock-volume
+  - mountPath: /var/log/nexus-iq-server
+    name: iq-server-pod-logs
+  - mountPath: /sonatype-work/clm-server
+    name: iq-clm-server
+
+sidecars:
+  - name: cloudsql-proxy
+    image: repo/gce-proxy:1.37.5
+    imagePullPolicy: Always
+    command:
+      - /cloud_sql_proxy
+      - --instances=REPLACE_ME
+      - --ip_address_types=PRIVATE
+    securityContext:
+      allowPrivilegeEscalation: false
+      runAsNonRoot: true
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop:
+          - ALL
+
+nodeSelector:
+  cloud.google.com/gke-nodepool: garuda-additional-nodepool
+
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: topology.kubernetes.io/zone
+              operator: NotIn
+              values:
+                - europe-west2-c
+
+volumes:
+  - name: nxiq-filestore-pv1
+    persistentVolumeClaim:
+      claimName: nxiq-filestore-pvc1
+
+  - name: config-volume1
+    configMap:
+      name: nexus-iq-server-conf1
+
+  - name: sonatype-tmp
+    emptyDir: {}
+  - name: fluentd-tmp
+    emptyDir: {}
+  - name: iq-server-pod-logs
+    emptyDir: {}
+  - name: fluentd-logs
+    emptyDir: {}
+  - name: fluentd-empty-dir
+    emptyDir: {}
+  - name: iq-clm-server
+    emptyDir: {}
+  - name: java-lock-volume
+    emptyDir: {}
