@@ -1,0 +1,246 @@
+Renovate Bot – Weekly User Support Session
+
+Expected duration: 30 minutes
+
+Suggested timing:
+
+* Welcome and agenda: 2 minutes
+* Renovate background: 3 minutes
+* Internal platform and workflow: 4 minutes
+* GitHub demonstration: 6 minutes
+* User questions and issue resolution: 12–14 minutes
+* Closing: 1–2 minutes
+
+1. Welcome and agenda
+
+Hello everyone. Thank you for joining today’s Renovate support session.
+
+We plan to conduct these sessions every Thursday. The primary purpose of these weekly sessions is to address any questions, problems, or concerns that users face while onboarding repositories or working with pull requests created by Renovate.
+
+We can use this forum to discuss onboarding issues, configuration questions, unexpected pull requests, dependency update failures, or any other challenges related to our internally hosted Renovate platform.
+
+Before we start taking questions, I would like to spend a few minutes providing some background on Renovate for anyone who is new to these sessions. I will also explain how our internal Renovate platform works, how repositories can be scanned on demand, and what users can expect to see in GitHub.
+
+After that, I will show a few examples directly in GitHub, including:
+
+* Pull requests created by Renovate
+* The purpose of the renovate.json configuration file
+* How configuration overrides work
+* GitHub issues created for dependency information and tracking
+
+We will then use the remaining time to address your questions and issues.
+
+2. Brief background on Renovate
+
+For anyone new to Renovate, Renovate is a dependency update automation tool.
+
+Most applications depend on external libraries, frameworks, plugins, container images, GitHub Actions, and other reusable components. Over time, these dependencies become outdated, and some versions may also be identified as vulnerable.
+
+Manually checking every repository and every dependency regularly is difficult, especially when we have a large number of repositories. Renovate helps automate this work.
+
+It scans the dependency files in a repository, identifies dependencies for which newer versions are available, and creates pull requests containing the required updates.
+
+Depending on the technology used by the repository, Renovate can detect dependencies from files such as Maven pom.xml files, Gradle build files, package.json files, Dockerfiles, Helm configuration, GitHub Actions workflows, and several other supported formats.
+
+The important point is that Renovate does not directly merge dependency changes into your default branch. It raises a pull request, allowing the repository owners to review the proposed update, check the build and test results, and merge it through the repository’s normal approval process.
+
+Our internal objective is to make it easier for teams to keep their dependencies current and to reduce the time during which applications continue using known vulnerable or significantly outdated components.
+
+3. How our internal Renovate platform works
+
+We have hosted Renovate internally and created a platform through which users can onboard their repositories.
+
+At a high level, the onboarding process has two main requirements.
+
+First, the repository needs to be onboarded through our platform.
+
+Second, the Renovate GitHub App must be installed and granted access to the repository. This installation gives Renovate the necessary access to inspect the repository and create branches, pull requests, and relevant GitHub issues.
+
+Once these steps are completed, the repository becomes eligible for automated scanning.
+
+We have a nightly scheduler that picks up the onboarded repositories and initiates Renovate scans. During a scan, Renovate reads the repository’s dependency files and configuration, checks for available updates, and creates pull requests where updates are required.
+
+These pull requests can cover outdated dependencies as well as dependency upgrades needed to move away from vulnerable versions.
+
+The repository team should review these pull requests in the same way as any other code change. This includes reviewing the version change, checking release notes where appropriate, confirming that the CI pipeline passes, and performing any application-specific testing required before merging.
+
+The nightly execution means that teams do not need to trigger scans manually as part of their normal workflow. Once a repository is onboarded and correctly configured, it will be included in the scheduled processing.
+
+4. On-demand scanning through APIs
+
+In addition to nightly scheduled scans, we have created APIs that allow users to trigger a scan for a repository on demand.
+
+This is useful in situations where you do not want to wait for the next nightly run. For example, you may have just completed the onboarding process, changed the Renovate configuration, corrected a repository issue, or merged an existing dependency pull request and want Renovate to evaluate the repository again.
+
+Using the APIs, users can request an immediate scan and obtain the result of that execution.
+
+During the demonstration, I will briefly show where these APIs are available and the information required to trigger a scan. I will also show how to check the returned status or result.
+
+The scheduled and on-demand options use the same underlying Renovate processing. The difference is simply whether the scan is initiated automatically by the nightly scheduler or manually by a user through the API.
+
+5. GitHub demonstration
+
+Let me now switch to GitHub and show what the Renovate output looks like in an onboarded repository.
+
+[Open an onboarded repository in GitHub.]
+
+This is an example of a repository that has already been onboarded. The Renovate GitHub App has access to it, and it is included in our scheduled scans.
+
+5.1 Showing a Renovate pull request
+
+[Open the Pull requests tab and select a Renovate pull request.]
+
+Here is an example of a pull request created by Renovate.
+
+The pull request title normally identifies the dependency being updated and the proposed version. In the changed files, we can see the exact dependency file modified by Renovate.
+
+[Open the Files changed section.]
+
+For example, Renovate may update a version in a pom.xml file, package.json file, Dockerfile, or another dependency file supported by the repository.
+
+The pull request description provides useful information about the update. Depending on the dependency, this may include the current version, the new version, the type of update, release notes, changelog links, or other relevant details.
+
+Teams should review this information before merging the pull request. In particular, major version upgrades may contain breaking changes and may require additional application changes or testing.
+
+Renovate proposes the dependency change, but the repository owners remain responsible for reviewing, testing, approving, and merging it.
+
+You should also check the CI results associated with the pull request. If the build or tests fail, review whether the failure was caused by the dependency update or by an unrelated issue in the repository.
+
+5.2 Purpose of the renovate.json file
+
+[Open the renovate.json file in the repository.]
+
+This is the repository-level renovate.json configuration file.
+
+Its purpose is to define how Renovate should behave for this particular repository. It allows repository owners to customize Renovate without requiring a platform-level change for every individual requirement.
+
+The file can be used to control settings such as:
+
+* Which dependency managers Renovate should use
+* Which files or paths should be included or excluded
+* How dependencies should be grouped
+* Whether certain dependencies should be ignored
+* The schedule on which particular updates are allowed
+* Rules for specific packages or types of version updates
+* Labels, reviewers, or other pull-request behaviour
+
+Not every repository needs a large or complex configuration. In most cases, it is better to begin with the standard configuration and add repository-specific rules only where there is a clear requirement.
+
+When changing renovate.json, the file must contain valid JSON and valid Renovate configuration. A syntax error or unsupported configuration value can prevent Renovate from processing the repository as expected.
+
+5.3 How configuration overrides work
+
+We have a standard platform configuration that provides the common Renovate behaviour expected across repositories.
+
+The renovate.json file allows teams to customize supported settings for their own repository. Renovate evaluates the effective configuration by combining the applicable platform configuration with the repository-level configuration.
+
+This means that the repository configuration does not necessarily replace the complete platform configuration. It normally extends or overrides the applicable settings.
+
+For example, the platform may define a common default behaviour, while a repository may add a package rule to group related dependencies or exclude a dependency that cannot currently be upgraded.
+
+[Show an example rule from the repository, if available.]
+
+In this example, the repository is providing a specific rule for a particular dependency or group of dependencies.
+
+When adding an override, users should keep it as narrow as possible. A broad rule may unintentionally affect dependencies that were not meant to be included.
+
+If you are unsure whether a configuration value can be overridden, or if Renovate behaves differently after a configuration change, please bring the example to one of these Thursday sessions. We can review the effective behaviour together.
+
+5.4 GitHub issue for dependencies
+
+[Open the Issues tab and select the Renovate-created issue.]
+
+Renovate can also create a GitHub issue that provides a consolidated view of dependency updates. This is commonly presented as a dependency dashboard.
+
+The issue can show detected dependency updates, open pull requests, pending updates, and updates that may require some form of approval or attention.
+
+This gives repository owners a central place to understand the dependency update state instead of reviewing every pull request independently.
+
+Depending on the configured workflow, the issue may also be used to request or approve the creation of selected pull requests.
+
+If a dependency appears in the GitHub issue but no pull request has been created, it does not always mean that the scan failed. The update might be waiting because of configuration, scheduling, approval requirements, rate limits, an existing pull request, or another Renovate rule.
+
+When reporting such an issue, please share the repository name, dependency name, link to the GitHub issue or pull request, and the approximate time of the last scan. That information will help us investigate it more efficiently.
+
+5.5 On-demand scan demonstration
+
+[Open the API interface, Swagger page, Postman request, or other approved API client.]
+
+Finally, I will briefly show how to initiate an on-demand scan.
+
+For the request, we provide the required repository details.
+
+[Show the request without exposing credentials or sensitive values.]
+
+After submitting the request, the API returns an acknowledgement or execution result. We can then use the available response information to determine whether the repository was accepted for processing and whether the scan completed successfully.
+
+An accepted request does not necessarily mean that Renovate will create a pull request. Renovate will create a pull request only when it detects an eligible dependency update under the effective configuration.
+
+If an on-demand scan completes without creating a pull request, check whether the repository already uses the latest eligible versions, whether an update is already represented by an existing pull request, or whether configuration rules are preventing or postponing the update.
+
+6. Transition to questions and user issues
+
+That concludes the introductory overview and demonstration.
+
+To summarize:
+
+* Renovate automates the identification and proposal of dependency updates.
+* Repositories are onboarded through our internal platform.
+* The Renovate GitHub App must be installed for the relevant repositories.
+* A nightly scheduler scans onboarded repositories.
+* Renovate creates pull requests for eligible vulnerable and outdated dependency updates.
+* Repository teams review, test, and merge those pull requests.
+* The renovate.json file provides repository-level configuration.
+* Dependency-related information may also be presented through a GitHub issue or dependency dashboard.
+* APIs are available when a repository needs to be scanned on demand.
+
+We can now move to the main purpose of this session: addressing your questions and any issues you are currently facing.
+
+Please feel free to raise your question directly. If it relates to a particular repository, it would be helpful if you could provide:
+
+* The repository name
+* A link to the relevant pull request or GitHub issue
+* The dependency involved
+* The expected behaviour
+* What actually happened
+* Whether the problem occurred during a scheduled or on-demand scan
+
+Who would like to start?
+
+7. Useful responses while handling questions
+
+If an issue requires investigation:
+
+Thank you for sharing the details. We may not be able to determine the complete cause during this call, but we will capture the repository and scan details and investigate it after the session. We will share the findings with you through the agreed support channel.
+
+If a question is specific to one repository:
+
+This appears to be specific to the repository’s configuration or dependency structure. Let us first review the renovate.json rules and the relevant dependency file. We can then compare the expected behaviour with what Renovate detected.
+
+If no pull request was created:
+
+The absence of a pull request does not necessarily indicate a failure. We should check the dependency dashboard, existing pull requests, effective configuration, supported package manager, and the result of the latest scan.
+
+If too many pull requests were created:
+
+We can review whether related updates should be grouped, whether limits or scheduling rules are appropriate, and whether any repository-specific package rules would make the updates easier for the team to manage.
+
+If a pull request is failing CI:
+
+Renovate’s role is to propose the version update. A failing pipeline may indicate a breaking dependency change, a required application modification, or an unrelated build issue. We will need to review the actual failure before deciding whether the dependency should be ignored, postponed, or handled through an application change.
+
+If someone requests a broad override:
+
+We can check whether this requirement can be handled through renovate.json. We should keep the rule specific to the relevant dependency or update type so it does not unintentionally change the behaviour of other updates.
+
+8. Closing
+
+If there are no further questions, we can close today’s session.
+
+Thank you, everyone, for joining and for sharing your questions and feedback.
+
+As mentioned earlier, we plan to conduct this Renovate support session every Thursday. Please use these sessions to bring any onboarding problems, configuration questions, unexpected pull requests, scan failures, or other issues related to the internal Renovate platform.
+
+If possible, keep the repository link, pull request or issue link, dependency name, and relevant scan details ready. This will help us review the issue more quickly during the session.
+
+Thank you again for your time. Have a great day.
